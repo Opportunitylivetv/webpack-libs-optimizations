@@ -4,10 +4,15 @@ Using a library in your webpack project? Use these tips to make your bundle smal
 
 Want to add a tip? See [the contribution guide](/CONTRIBUTING.md) and make a pull request!
 
+<img src="https://i.imgur.com/tjFWoUj.png" width="600" />
+
 Contents:
 
+* [`async`](#async)
+* [`async-es`](#async-es)
 * [`babel-polyfill`](#babel-polyfill)
 * [`core-js`](#core-js)
+* [`date-fns`](#date-fns)
 * [`lodash`](#lodash)
 * [`lodash-es`](#lodash-es)
 * [`moment`](#moment)
@@ -18,6 +23,62 @@ Contents:
 * [`styled-components`](#styled-components)
 * [`whatwg-fetch`](#whatwg-fetch)
 * [Solutions that work with multiple libraries](#solutions-that-work-with-multiple-libraries)
+
+## async
+
+`async` is a collection of utilities for working with async functions. [npm package](https://www.npmjs.com/package/async)
+
+Generally, you should use [the `async-es` package ⤵](#async-es) instead. It ships with ES modules and is more optimized for bundling with webpack.
+
+Still, even if prefer to use `async`, for the list of optimizations, see [the `async-es` section ⤵](#async-es).
+
+## async-es
+
+`async-es` is a collection of utilities for working with async functions. It’s the same package as [`async` ⤴](#async), but it’s more optimized for bundling with webpack. [npm package](https://www.npmjs.com/package/async-es)
+
+### Remove unused methods with `babel-plugin-lodash`
+
+> ✅ Safe to use by default / How to enable is ↓ / Added by [@iamakulov](https://twitter.com/iamakulov)
+
+If you use `async-es` as a single import, you’re bundling the whole library into the application – even if you only use a couple of its methods:
+
+```js
+// You only use `async.map`, but the whole library gets bundled
+import async from 'async-es';
+
+async.map(['file1', 'file2', 'file3'], fs.stat, function(err, results) {
+  console.log(results);
+});
+```
+
+Use [`babel-plugin-lodash`](https://github.com/lodash/babel-plugin-lodash) to pick only those `async-es` methods you need:
+
+```js
+// Before Babel is applied
+import async from 'async-es';
+
+async.map(['file1', 'file2', 'file3'], fs.stat, function(err, results) {
+  console.log(results);
+});
+
+↓
+
+// After Babel is applied
+import _map from 'async-es/map';
+
+_map(['file1', 'file2', 'file3'], fs.stat, function(err, results) {
+  console.log(results);
+});
+```
+
+Enable this plugin as follows:
+
+```json
+// .babelrc
+{
+  "plugins": [["lodash", { "id": ["async-es"] }]],
+}
+```
 
 ## babel-polyfill
 
@@ -31,23 +92,23 @@ For the list of optimizations, see [the `core-js` section ⤵](#core-js).
 
 ### Remove unnecessary polyfills with `babel-preset-env`
 
-> ✅ Safe to use by default / [How to enable](https://github.com/lodash/babel-plugin-lodash) / Added by [@iamakulov](https://twitter.com/iamakulov)
+> ✅ Safe to use by default / [How to enable](https://babeljs.io/docs/plugins/preset-env/#usebuiltins) / Added by [@iamakulov](https://twitter.com/iamakulov)
 
 If you compile your code with Babel and `babel-preset-env`, add [the `useBuiltIns: true` option](https://babeljs.io/docs/plugins/preset-env/#usebuiltins). This option configures Babel to only include polyfills that are necessary for target browsers. I.e., if you target your app to support Internet Explorer 11:
 
 ```json
 // .babelrc
 {
-    "presets": [
-        [
-            "env",
-            {
-                "targets": {
-                    "browsers": ["last 2 versions", "ie >= 11"]
-                }
-            }
-        ]
+  "presets": [
+    [
+      "env",
+      {
+        "targets": {
+          "browsers": ["last 2 versions", "ie >= 11"]
+        }
+      }
     ]
+  ]
 }
 ```
 
@@ -59,6 +120,28 @@ enabling `useBuiltIns: true` will remove polyfills for all features that Interne
 
 All browsers that support `<script type="module">` also support modern JS features like `async`/`await`, arrow functions and classes. Use this feature to build two versions of the bundle and make modern browsers load only the modern code. For the guide, see [the Philip Walton’s article](https://philipwalton.com/articles/deploying-es2015-code-in-production-today/).
 
+## date-fns
+
+date-fns is a date utility library. [npm package](https://www.npmjs.com/package/date-fns)
+
+### Enable `babel-plugin-date-fns`
+
+> ✅ Safe to use by default / [How to enable](https://github.com/date-fns/babel-plugin-date-fns) / Added by [@chentsulin](https://twitter.com/chentsulin)
+
+[`babel-plugin-date-fns`](https://github.com/date-fns/babel-plugin-date-fns) replaces full imports of date-fns with imports of specific date-fns functions:
+
+```js
+import { format } from 'date-fns';
+format(new Date(2014, 1, 11), 'MM/DD/YYYY');
+```
+
+↓
+
+```js
+import _format from 'date-fns/format';
+_format(new Date(2014, 1, 11), 'MM/DD/YYYY');
+```
+
 ## lodash
 
 Lodash is an utility library. [npm package](https://www.npmjs.com/package/lodash)
@@ -69,22 +152,22 @@ Lodash is an utility library. [npm package](https://www.npmjs.com/package/lodash
 
 [`babel-plugin-lodash`](https://github.com/lodash/babel-plugin-lodash) replaces full imports of Lodash with imports of specific Lodash functions:
 
-```
-import _ from 'lodash'
-_.map([1, 2, 3], i => i + 1)
+```js
+import _ from 'lodash';
+_.map([1, 2, 3], i => i + 1);
 ```
 
 ↓
 
-```
-import _map from 'lodash/map'
-_map([1, 2, 3], i => i + 1)
+```js
+import _map from 'lodash/map';
+_map([1, 2, 3], i => i + 1);
 ```
 
 Note: the plugin doesn’t work with chain sequences – i.e. code like
 
-```
-_([1, 2, 3]).map(i => i + 1).value()
+```js
+_([1, 2, 3]).map(i => i + 1).value();
 ```
 
 won’t be optimized.
@@ -100,11 +183,11 @@ To avoid this, alias the `lodash-es` package to `lodash`:
 ```js
 // webpack.config.js
 module.exports = {
-    resolve: {
-        alias: {
-            'lodash-es': 'lodash',
-        },
+  resolve: {
+    alias: {
+      'lodash-es': 'lodash',
     },
+  },
 };
 ```
 
@@ -144,13 +227,19 @@ React is a library for building user interfaces. [npm package](https://www.npmjs
 
 React doesn’t perform `propTypes` checks in production, but the `propTypes` declarations still occupy a part of the bundle. Use [`babel-plugin-transform-react-remove-prop-types`](https://www.npmjs.com/package/babel-plugin-transform-react-remove-prop-types) to remove them from during building.
 
-### Replace with Preact
+### Migrate to an alternative React-like Library
 
-> ⚠ Use with caution / [How to migrate](https://preactjs.com/guide/switching-to-preact) / Added by [@iamakulov](https://twitter.com/iamakulov)
+> ⚠ Use with caution / Added by [@iamakulov](https://twitter.com/iamakulov) & [@kurtextrem](https://twitter.com/kurtextrem)
 
-[Preact](https://github.com/developit/preact) is a smaller React alternative with a similar API. Switching to it saves you 250 minified KBs (tested with `preact@8.2.7` + `preact-compat@3.17.0` vs. `react@16.2.0` + `react-dom@16.2.0`).
+There are alternatives to React with a similar API that have a smaller size or a higher performance, but lack some features (e.g., fragments, portals, or synthetic events).
 
-**Migrate to Preact with caution.** Preact is not 100% compatible with React – i.e. it doesn’t support synthetic events and [some React 16 features](https://github.com/developit/preact-compat/issues/432). However, many projects still can be migrated without any codebase changes. See [the migration guide](https://preactjs.com/guide/switching-to-preact).
+- [Preact](https://github.com/developit/preact) | The smallest React alternative (`preact@8.3.1` + `preact-compat@3.18.3` is 7.6 kB gzipped; `react@16.4.0` + `react-dom@16.4.0` is 31.4 kB gzipped) | No synthetic events | IE8 supported with polyfills
+
+- [Nerv](https://github.com/NervJS/nerv) | Smaller than React, larger than Preact (`nervjs@1.3.3` is 9.8 kB gzipped, compat is not neede; `react@16.4.0` + `react-dom@16.4.0` is 31.4 kB gzipped) | The goal of Nerv is to have 100% the same API (without Fiber and Suspense), see [NervJS/nerv#10](https://github.com/NervJS/nerv/issues/10#issuecomment-356913486) for details | IE8 supported
+
+- [Inferno](https://github.com/infernojs/inferno) | Smaller than React, larger than Preact and Nerv (`inferno@5.4.2` + `inferno-compat@5.4.2` is 11.3 kB gzipped; `react@16.4.0` + `react-dom@16.4.0` is 31.4 kB gzipped) | Higher runtime performance than React, the highest performance among all React alternatives, [manual optimization possibilities offered](https://infernojs.org/docs/guides/optimizations) | Partial synthetic events | IE8 unsupported natively
+
+**Migrate to alternatives with caution.** Some of the alternatives don’t have synthetic events or are lacking some React 16 features ([Preact issue](https://github.com/developit/preact-compat/issues/432), [Inferno issue](https://github.com/infernojs/inferno/issues/501), [Nerv issue](https://github.com/NervJS/nerv/issues/5)). However, many projects still can be migrated without any codebase changes. See the migration guides: [Preact](https://preactjs.com/guide/switching-to-preact), [Inferno](https://infernojs.org/docs/guides/switching-to-inferno), [Nerv](https://github.com/NervJS/nerv#switching-to-nerv-from-react).
 
 ## reactstrap
 
@@ -210,7 +299,7 @@ Use [`babel-plugin-transform-imports`](https://www.npmjs.com/package/babel-plugi
   "plugins": [
     ["transform-imports", {
       "react-bootstrap": {
-        "transform": "react-bootstrap/lib/${member}",
+        "transform": "react-bootstrap/es/${member}",
         "preventFullImport": true
       }
     }]
@@ -280,7 +369,7 @@ There’s [`babel-plugin-styled-components`](https://github.com/styled-component
 
 ## Solutions that work with multiple libraries
 
-Of course, there are also optimization tips for other libaries too. You can use them with common sense to get smaller or more performant bundles.
+Of course, there are also optimization tips for other libraries too. You can use them with common sense to get smaller or more performant bundles.
 
 ### `babel-plugin-transform-imports`
 
